@@ -1,0 +1,351 @@
+---
+title: |
+  <center><b>Latest Data Science Salaries</b></center>
+output: html_document
+
+format: 
+  html:
+      self_contained: yes
+      toc: yes
+      toc_depth: 2
+      smooth_scroll: yes
+      toc_float: yes
+      number_sections: yes
+      title-block-banner: true
+---
+
+<center><b>Analyzing the Evolution of Data Science Salaries from 2020 to 2023</b></center>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  echo = FALSE,  # hide all code chunks in output
+  warning = FALSE, # do not show warnings in the output word doc 
+  message = FALSE, # do not show  messages in the output word doc
+  fig.align = "center", # align all figs in center
+  fig.width=8,     # Figure width
+  fig.height=4.5,  # Figure height
+  fig.topcaption = TRUE  # show figure titles on top of plot
+)
+```
+
+```{r, echo=FALSE}
+pacman::p_load(readr, janitor, ggthemes, here, viridis, flextable, gt, gtExtras, gtable, gridExtra, tidyverse)
+```
+
+Hello,
+
+The "Data Science Salaries" dataset from Kaggle provides valuable insights into the compensation trends and variations in the field of data science from 2020 to 2023. This dataset encompasses a comprehensive collection of salary information from various industries, organizations, and geographic regions, enabling data professionals, researchers, and organizations to analyze and understand the prevailing salary landscape in the data science domain during this four-year period.
+
+------------------------------------------------------------------------
+
+::: {style="display: flex;"}
+::: {.column width="50%\""}
+By examining this dataset, one can gain a deeper understanding of the factors influencing data science salaries, such as job roles, experience levels, educational backgrounds, and geographical locations. The dataset serves as a valuable resource for individuals seeking career guidance, companies aiming to benchmark their compensation strategies, and researchers investigating the evolving dynamics of the data science job market.
+:::
+
+::: {.column width="50%"}
+For any comments, please contact:
+
+Duncan Kabiito Matovu,<br/> Mobile +256787755590; Email:<br/> [duncanmatovu\@gmail.com](mailto:duncanmatovu@gmail.com){.email}
+
+:::
+:::
+
+
+## Assessing the data set for outliers
+
+```{r, fig.width = 12, fig.height=6}
+salaries_df_1 <- read_csv(here("Latest_Data_Science_Salaries.csv")) %>% clean_names()
+
+plot_1 <- salaries_df_1 %>% 
+  filter(salary_currency == "United States Dollar") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x = year, y = salary)) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  scale_y_continuous(labels = scales::comma)+
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_solarized() +
+  theme(legend.position="none",
+        plot.title = element_text(size = 12,face = "bold")) +
+  labs(title = "Identifying outliers", x = "Year", y = "Salary, for currency in USDs")
+
+
+plot_2 <- salaries_df_1 %>% 
+  filter(salary_currency == "British Pound Sterling") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x = year, y = salary)) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  scale_y_continuous(labels = scales::comma)+
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_solarized() +
+  theme(legend.position="none",
+        plot.title = element_text(size=12, face = "bold")) +
+  labs(title = "Identifying outliers", x = "Year", y = "Salary, for currency in Pounds")
+
+plot_3 <- salaries_df_1 %>% 
+  filter(salary_currency == "Euro") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x = year, y = salary)) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  scale_y_continuous(labels = scales::comma)+
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme_solarized() +
+  theme(legend.position="none",
+        plot.title = element_text(size=12, face = "bold")) +
+  labs(title = "Identifying outliers", x = "Year", y = "Salary, for currency in Euros")
+
+grid.arrange(plot_1, plot_2, plot_3, ncol = 3)
+```
+
+Indeed there are some extreme values that we shall not remove at this point. I request we just dive in to interrogate further: What could be the hiring companies (different companies pay differently), what's the level of expertise, Job title, etc
+
+```{r}
+salaries_df_1 %>% 
+  group_by(company_location) %>% 
+  summarise(average_salary = round(mean(salary_in_usd, na.rm = T),0))%>% 
+  arrange(desc(average_salary)) %>% 
+  slice_head(n = 30) %>% 
+  select(company_location, average_salary) %>% 
+  rename("Location" = company_location,
+         "Salary in USD (average)" = average_salary) %>% 
+  gt() %>% 
+  gt_theme_nytimes() %>% 
+  tab_header(title = "Average salary (yearly) paid to data professionals by county") %>%
+  fmt_number(columns = everything(), use_seps = TRUE, decimals = 0)
+
+```
+
+## Israel and Puerto Rico
+
+### Level of expertise hired by Israel and Puerto Rico
+
+::: {.row style="display: flex; margin-top: 10px; margin-bottom: 10pxx"}
+::: {.column style="flex-basis: 50%;"}
+```{r}
+salaries_df_1 %>% 
+  filter(company_location %in% c("Israel")) %>% 
+  group_by(job_title, expertise_level) %>% 
+  summarise(average_salary = mean(salary_in_usd, na.rm = T)) %>% 
+  rename("Job title" = job_title,
+         "Level" = expertise_level,
+         "Salary in USD (Average)" = average_salary) %>% 
+  flextable() %>%
+  autofit() %>% 
+  bg(part = "body", bg = "gray95") %>%
+  theme_box()
+
+```
+
+:::
+
+::: {.column style="flex-basis: 50%;"}
+
+```{r}
+salaries_df_1 %>% 
+  filter(company_location %in% c("Puerto Rico")) %>% 
+  group_by(job_title, expertise_level) %>% 
+  summarise(average_salary = mean(salary_in_usd, na.rm = T)) %>% 
+  rename("Job title" = job_title,
+         "Level" = expertise_level,
+         "Salary in USD (Average)" = average_salary) %>% 
+  flextable() %>%
+  autofit() %>% 
+  bg(part = "body", bg = "gray95") %>%
+  theme_box()
+```
+
+:::
+:::
+
+## United states and canada
+
+I was quite amazed by the level of expertise and involvement in data prerequisites in United States and Canada
+
+They both seem to have a versatile level of experts, but much of your focus should be placed on the number of people in the fields of Data Engineer to Machine learning Engineers
+
+### Below are top 10 jobs where people seem to be most involved (United States-Left, Canada-Right)
+
+::: {.row style="display: flex; margin-top: 10px; margin-bottom: 10pxx"}
+::: {.column style="flex-basis: 50%;"}
+
+```{r}
+salaries_df_1 %>% 
+  filter(company_location %in% c("United States")) %>% 
+  group_by(job_title) %>% 
+  summarise("No. of experts" = n()) %>%
+  arrange(desc(`No. of experts`)) %>% 
+  slice_head(n = 10) %>% 
+  rename("Job title" = job_title) %>% 
+  flextable() %>%
+  autofit() %>% 
+  bg(part = "body", bg = "gray95") %>%
+  theme_box()
+
+```
+
+:::
+
+::: {.column style="flex-basis: 50%;"}
+
+
+```{r}
+salaries_df_1 %>% 
+  filter(company_location %in% c("Canada")) %>% 
+  group_by(job_title) %>% 
+  summarise("No. of experts" = n()) %>%
+  arrange(desc(`No. of experts`)) %>% 
+  slice_head(n = 10) %>% 
+  rename("Job title" = job_title) %>% 
+  flextable() %>%
+  autofit() %>% 
+  bg(part = "body", bg = "gray95") %>%
+  theme_box()
+
+```
+
+:::
+:::
+
+Of course this is a sample dataset but it sort of paints a picture
+
+## Data Analysts
+
+### Salaries of data analysts have been increasing over the years, but the increase is quite maginal
+```{r}
+salaries_df_1 %>% 
+  filter(job_title == "Data Analyst") %>% 
+  group_by(year) %>% 
+  summarise(salary = round(mean(salary_in_usd, na.rm = T))) %>% 
+  ggplot(aes(x = year, y = salary))+
+  geom_col(fill = "#6495ED", color = "black")+
+  theme_test()+
+  scale_y_continuous(expand = expansion(mult = c(0, .1)), labels = scales::comma)+
+  labs(title = "Data Analyst salaries over the years", x = "Year", y = "Salary in USDs")+
+  geom_text(aes(label = salary), hjust = 0.5, vjust = 3, colour = "black", size = 5)
+```
+
+#### The level of expertise too is of note, experts seem to be be earning better off than even directors. In my context, a director is higher than an expert
+
+```{r}
+salaries_df_1 %>% 
+  mutate(year = as.character(year)) %>% 
+  filter(job_title == "Data Analyst") %>% 
+  group_by(year, expertise_level) %>% 
+  summarise(salary = round(mean(salary_in_usd, na.rm = T))) %>% 
+  ggplot(aes(x = year, y = salary))+
+  geom_col(fill = "#0E6655", color = "black")+
+  theme_test()+
+  scale_y_continuous(expand = expansion(mult = c(0, .1)), labels = scales::comma)+
+  labs(title = "Data Analyst salaries by level of expertise", x = "Year", y = "Salary in USDs")+
+  geom_text(aes(label = salary), hjust = 0.5, vjust = 3, colour = "black", size = 3)+
+  facet_wrap(~expertise_level, scales = "free") 
+```
+
+## Data scientists
+
+### It's clear that data science is taking over, there was a sublime decline in their salaries in 2021 but wee them picking up in 2022 by nearly double what they were getting in 2021.
+
+```{r}
+salaries_df_1 %>% 
+  filter(job_title == "Data Scientist") %>% 
+  group_by(year) %>% 
+  summarise(salary = round(mean(salary_in_usd, na.rm = T))) %>% 
+  ggplot(aes(x = year, y = salary))+
+  geom_col(fill = "lightgreen", color = "black")+
+  theme_test()+
+  scale_y_continuous(expand = expansion(mult = c(0, .1)), labels = scales::comma)+
+  labs(title = "Data scientist salaries over the years", x = "Year", y = "Salary in USDs")+
+  geom_text(aes(label = salary), hjust = 0.5, vjust = 3, colour = "black", size = 5)
+```
+
+### Expertise too is of note but here we see that directors are currently earning much higher than experts
+
+#### Will be good to interogate the skills required for one to be a director, in the data science space
+
+```{r}
+salaries_df_1 %>% 
+  mutate(year = as.character(year)) %>% 
+  filter(job_title == "Data Scientist") %>% 
+  group_by(year, expertise_level) %>% 
+  summarise(salary = round(mean(salary_in_usd, na.rm = T))) %>% 
+  ggplot(aes(x = year, y = salary))+
+  geom_col(fill = "#CCCCFF", color = "black")+
+  theme_test()+
+  scale_y_continuous(expand = expansion(mult = c(0, .1)), labels = scales::comma)+
+  labs(title = "Data scientist salaries by level of expertise", x = "Year", y = "Salary in USDs")+
+  geom_text(aes(label = salary), hjust = 0.5, vjust = 3, colour = "black", size = 5)+
+  facet_wrap(~expertise_level, scales = "free")
+```
+
+### Linear regression
+
+#### Exploring the Factors Affecting Salaries for data analysts, scientists and modellers: A Multiple Linear Regression Analysis
+
+### Model 1 (variables provided for are; Salaries in USD, expertise level, year and job title)
+
+```{r}
+new_df <- salaries_df_1 %>% 
+  filter(job_title %in% c("Data Scientist", "Data Analyst", "Data Specialist", "Head of Data Science",
+                           "Data Science Lead", "Data Modeller", "Data Modeler"))
+
+
+lm_model <- lm(salary_in_usd~factor(expertise_level)+factor(year)+factor(job_title), data = new_df)
+
+summary(lm_model)
+
+
+```
+
+*** represents significance
+
+The Adjusted R-squared indicates how much of the variation is explained by the model in respect to the dependent variable salaries across the independent variables used
+
+#### Model 1 diagnostics
+
+```{r, fig.width = 12, fig.height=9}
+par(mfrow = c(2,2))
+
+plot(lm_model)
+```
+
+### Model 2
+```{r}
+lm_model_2 <- lm(salary_in_usd~factor(expertise_level)+factor(job_title)+factor(company_size), data = new_df)
+
+summary(lm_model_2)
+```
+
+*** represents significance
+
+The Adjusted R-squared indicates how much of the variation is explained by the model in respect to the dependent variable salaries across the independent variables used
+
+
+### Comapring the two models to get the most appropriate model
+
+### Null hypothesis: model 1 significantly improves fit than model 2
+
+### Alternative hypothesis: model 1 doesn't not significantly improve fit than model 2
+
+```{r}
+library(lmtest)
+
+lrtest(lm_model, lm_model_2)
+```
+
+With a P -Value of 0.02678 which is less than 0.05 at 95% Confidence Interval, we shall reject the null hypothesis and conclude that model 2 provides better predictions than model 1
+
+#### Model 2 diagnostics 
+
+```{r, fig.width = 12, fig.height=9}
+par(mfrow = c(2,2))
+
+plot(lm_model_2)
+```
+
+### Note: Interpretation of model 2 coefficients can be provided on request
+
+## Feel free to reach me for any consultancies, thanks
